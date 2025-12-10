@@ -47,6 +47,7 @@ class PunchController extends GetxController {
     try {
       if (pos.isMocked) return true;
     } catch (_) {}
+
     const platform = MethodChannel("mock-location-checker");
     try {
       final isMock = await platform.invokeMethod<bool>("isMockLocation");
@@ -58,6 +59,7 @@ class PunchController extends GetxController {
 
   Future<void> initLocation() async {
     await Geolocator.requestPermission();
+
     Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
@@ -65,8 +67,11 @@ class PunchController extends GetxController {
       ),
     ).listen((pos) async {
       currentPosition.value = pos;
+
       isMocked.value = await checkMockLocation(pos);
-      if (isMocked.value) Get.snackbar("Warning", "Mock location detected!");
+      if (isMocked.value) {
+        Get.snackbar("Warning", "Mock location detected!");
+      }
 
       final dist = Geolocator.distanceBetween(
         designatedLat,
@@ -80,18 +85,20 @@ class PunchController extends GetxController {
     });
   }
 
+  // ⭐ UPDATED: Only 5-minute restriction. Same-day allowed.
   bool get canPunch {
     if (!isWithinRadius.value) return false;
     if (isMocked.value) return false;
 
     if (lastPunchTime != null) {
       final now = DateTime.now();
-      if (now.difference(lastPunchTime!) < const Duration(seconds: 60))
+
+      // Only 5-minute lock
+      if (now.difference(lastPunchTime!) < const Duration(minutes: 5)) {
         return false;
-      if (now.year == lastPunchTime!.year &&
-          now.month == lastPunchTime!.month &&
-          now.day == lastPunchTime!.day) return false;
+      }
     }
+
     return true;
   }
 
@@ -112,18 +119,31 @@ class PunchController extends GetxController {
 
   Future<void> punchIn() async {
     final pos = currentPosition.value;
+
     if (pos == null) {
       Get.snackbar("Error", "Location not ready");
       return;
     }
 
+    final now = DateTime.now();
+
     if (!canPunch) {
-      Get.snackbar(
-        "Error",
-        isMocked.value
-            ? "Cannot punch using mock location"
-            : "Punch not allowed",
-      );
+      if (lastPunchTime != null) {
+        final remaining =
+            const Duration(minutes: 5) - now.difference(lastPunchTime!);
+
+        Get.snackbar(
+          "Please Wait",
+          "You can punch again in ${remaining.inMinutes} min "
+              "${remaining.inSeconds % 60} sec",
+        );
+      } else if (isMocked.value) {
+        Get.snackbar("Error", "Mock location detected!");
+      } else if (!isWithinRadius.value) {
+        Get.snackbar("Error", "You are outside allowed radius!");
+      } else {
+        Get.snackbar("Error", "Punch not allowed!");
+      }
       return;
     }
 
@@ -135,7 +155,7 @@ class PunchController extends GetxController {
         : "Offline — GPS only";
 
     final punch = Punch(
-      timestamp: DateTime.now().millisecondsSinceEpoch,
+      timestamp: now.millisecondsSinceEpoch,
       latitude: pos.latitude,
       longitude: pos.longitude,
       address: address,
@@ -143,14 +163,17 @@ class PunchController extends GetxController {
 
     await DBHelper.instance.insertPunch(punch);
 
-    lastPunchTime = DateTime.now();
+    lastPunchTime = now;
+
     await loadRecentPunches();
     await loadLastNDaysGrouped(days: 5);
 
     isPunching.value = false;
 
     Get.snackbar(
-        "Success", online ? "Punch recorded!" : "Punch saved offline!");
+      "Success",
+      online ? "Punch recorded!" : "Punch saved offline!",
+    );
   }
 
   Future<void> loadLastNDaysGrouped({int days = 5}) async {
