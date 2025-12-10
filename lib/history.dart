@@ -16,42 +16,77 @@ class HistoryScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Punch History'),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
+        title: const Text(
+          'Punch History',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blueAccent,
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: EdgeInsets.all(12.0),
             child: ElevatedButton.icon(
-              onPressed: () {
-                Get.to(() => MapViewScreen());
-              },
-              icon: const Icon(Icons.map),
-              label: const Text("View Map of Last 5 Days"),
+              onPressed: () => controller.exportAndShareCSV(),
+              icon: const Icon(
+                Icons.download,
+                color: Colors.white,
+              ),
+              label: const Text(
+                "Export History CSV",
+                style: TextStyle(color: Colors.white),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
-                ),
+                backgroundColor: Colors.green,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
           ),
-
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Get.to(() => MapViewScreen());
+              },
+              icon: const Icon(
+                Icons.map,
+                color: Colors.white,
+              ),
+              label: const Text(
+                "View Map of Last 5 Days",
+                style: TextStyle(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           Expanded(
             child: Obx(() {
               if (controller.groupedPunches.isEmpty) {
                 return const Center(
-                  child: Text("No data found", style: TextStyle(fontSize: 16)),
+                  child: Text(
+                    "No data found",
+                    style: TextStyle(fontSize: 16),
+                  ),
                 );
               }
 
               final keys = controller.groupedPunches.keys.toList()
-                ..sort((a, b) => b.compareTo(a));
+                ..sort((a, b) => b.compareTo(a)); // newest date first
 
               return ListView.builder(
                 padding: const EdgeInsets.all(12),
@@ -71,19 +106,16 @@ class HistoryScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // DATE HEADER
                           Text(
-                            DateFormat(
-                              'dd MMM yyyy',
-                            ).format(DateTime.parse(dateKey)),
+                            DateFormat('dd MMM yyyy').format(
+                              DateTime.parse(dateKey),
+                            ),
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 10),
-
-                          // NO RECORDS
                           punches.isEmpty
                               ? const Text(
                                   "No punches recorded",
@@ -91,9 +123,9 @@ class HistoryScreen extends StatelessWidget {
                                 )
                               : Column(
                                   children: punches.map((p) {
-                                    final punchTime = DateTime.parse(
-                                      p.timestamp.toString(),
-                                    );
+                                    final punchTime =
+                                        DateTime.fromMillisecondsSinceEpoch(
+                                            p.timestamp);
 
                                     return ListTile(
                                       leading: const Icon(

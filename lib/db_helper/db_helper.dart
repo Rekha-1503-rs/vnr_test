@@ -16,125 +16,113 @@ class DBHelper {
   }
 
   Future<Database> _initDB(String file) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, file);
+    try {
+      final dbPath = await getDatabasesPath();
+      final path = join(dbPath, file);
 
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-        CREATE TABLE punches (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          timestamp INTEGER,          -- stored as epoch milliseconds
-          latitude REAL,
-          longitude REAL,
-          address TEXT
-        )
-        ''');
-      },
-    );
+      return await openDatabase(
+        path,
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE punches (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              timestamp INTEGER,
+              latitude REAL,
+              longitude REAL,
+              address TEXT
+            )
+          ''');
+        },
+      );
+    } catch (e) {
+      print("DB initialization error: $e");
+      rethrow;
+    }
   }
 
-  // ---------------------------------------------------------
-  // INSERT PUNCH
-  // ---------------------------------------------------------
   Future<int> insertPunch(Punch punch) async {
-    final db = await database;
-    return await db.insert('punches', punch.toMap());
+    try {
+      final db = await database;
+      return await db.insert('punches', punch.toMap());
+    } catch (e) {
+      print("Insert punch error: $e");
+      return -1;
+    }
   }
 
-  // ---------------------------------------------------------
-  // GET LAST PUNCH (for preventing quick re-punch)
-  // ---------------------------------------------------------
   Future<Punch?> getLastPunch() async {
-    final db = await database;
-
-    final result = await db.query(
-      'punches',
-      orderBy: 'timestamp DESC',
-      limit: 1,
-    );
-
-    if (result.isEmpty) return null;
-    return Punch.fromMap(result.first);
+    try {
+      final db = await database;
+      final result = await db.query(
+        'punches',
+        orderBy: 'timestamp DESC',
+        limit: 1,
+      );
+      if (result.isEmpty) return null;
+      return Punch.fromMap(result.first);
+    } catch (e) {
+      print("Get last punch error: $e");
+      return null;
+    }
   }
 
-  // ---------------------------------------------------------
-  // GET PUNCHES SINCE A DATE (generic use)
-  // ---------------------------------------------------------
   Future<List<Punch>> getPunchesSince(DateTime fromDate) async {
-    final db = await database;
-
-    final results = await db.query(
-      'punches',
-      where: 'timestamp >= ?',
-      whereArgs: [fromDate.millisecondsSinceEpoch],
-      orderBy: 'timestamp DESC',
-    );
-
-    return results.map((r) => Punch.fromMap(r)).toList();
+    try {
+      final db = await database;
+      final results = await db.query(
+        'punches',
+        where: 'timestamp >= ?',
+        whereArgs: [fromDate.millisecondsSinceEpoch],
+        orderBy: 'timestamp DESC',
+      );
+      return results.map((r) => Punch.fromMap(r)).toList();
+    } catch (e) {
+      print("Get punches since error: $e");
+      return [];
+    }
   }
 
-  // ---------------------------------------------------------
-  // GET PUNCHES FOR LAST 5 DAYS
-  // ---------------------------------------------------------
   Future<List<Punch>> getPunchesForLast5Days() async {
-    final db = await database;
-
     final fromDate = DateTime.now().subtract(const Duration(days: 5));
-
-    final results = await db.query(
-      'punches',
-      where: 'timestamp >= ?',
-      whereArgs: [fromDate.millisecondsSinceEpoch],
-      orderBy: 'timestamp DESC',
-    );
-
-    return results.map((r) => Punch.fromMap(r)).toList();
+    return await getPunchesSince(fromDate);
   }
 
-  // ---------------------------------------------------------
-  // GET PUNCHES BY SPECIFIC DATE
-  // ---------------------------------------------------------
   Future<List<Punch>> getPunchesByDate(DateTime date) async {
-    final db = await database;
+    try {
+      final db = await database;
+      final start =
+          DateTime(date.year, date.month, date.day).millisecondsSinceEpoch;
+      final end = DateTime(date.year, date.month, date.day, 23, 59, 59)
+          .millisecondsSinceEpoch;
 
-    final start = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    ).millisecondsSinceEpoch;
-    final end = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      23,
-      59,
-      59,
-    ).millisecondsSinceEpoch;
+      final results = await db.query(
+        'punches',
+        where: 'timestamp BETWEEN ? AND ?',
+        whereArgs: [start, end],
+        orderBy: 'timestamp ASC',
+      );
 
-    final results = await db.query(
-      'punches',
-      where: 'timestamp BETWEEN ? AND ?',
-      whereArgs: [start, end],
-      orderBy: 'timestamp ASC',
-    );
-
-    return results.map((r) => Punch.fromMap(r)).toList();
+      return results.map((r) => Punch.fromMap(r)).toList();
+    } catch (e) {
+      print("Get punches by date error: $e");
+      return [];
+    }
   }
 
-  // OPTIONAL: delete old data
   Future<int> deleteOldPunches(int days) async {
-    final db = await database;
-    final cutoff = DateTime.now()
-        .subtract(Duration(days: days))
-        .millisecondsSinceEpoch;
-
-    return await db.delete(
-      'punches',
-      where: 'timestamp < ?',
-      whereArgs: [cutoff],
-    );
+    try {
+      final db = await database;
+      final cutoff =
+          DateTime.now().subtract(Duration(days: days)).millisecondsSinceEpoch;
+      return await db.delete(
+        'punches',
+        where: 'timestamp < ?',
+        whereArgs: [cutoff],
+      );
+    } catch (e) {
+      print("Delete old punches error: $e");
+      return -1;
+    }
   }
 }

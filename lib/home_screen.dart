@@ -17,17 +17,20 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xffeef2f3),
-
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.blueAccent,
         title: const Text(
           "Attendance Punch-In",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history),
+            icon: const Icon(
+              Icons.history,
+              color: Colors.white,
+            ),
             tooltip: 'History',
             onPressed: () {
               Get.to(() => HistoryScreen());
@@ -35,15 +38,11 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-
       body: Obx(() {
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // =============================================================
-              //  FIXED LOCATION CARD
-              // =============================================================
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -75,7 +74,6 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-
                     Row(
                       children: [
                         const Icon(Icons.location_pin, color: Colors.white),
@@ -92,12 +90,7 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(height: 25),
-
-              // =============================================================
-              //  CURRENT LOCATION CARD
-              // =============================================================
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
@@ -121,9 +114,7 @@ class HomeScreen extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
                     Row(
                       children: [
                         const Icon(Icons.my_location, color: Colors.blue),
@@ -132,16 +123,14 @@ class HomeScreen extends StatelessWidget {
                           child: Text(
                             controller.currentPosition.value != null
                                 ? "${controller.currentPosition.value!.latitude.toStringAsFixed(6)}, "
-                                      "${controller.currentPosition.value!.longitude.toStringAsFixed(6)}"
+                                    "${controller.currentPosition.value!.longitude.toStringAsFixed(6)}"
                                 : "Fetching location...",
                             style: const TextStyle(fontSize: 15),
                           ),
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 15),
-
                     Row(
                       children: [
                         Icon(
@@ -151,7 +140,6 @@ class HomeScreen extends StatelessWidget {
                               : Colors.red,
                         ),
                         const SizedBox(width: 8),
-
                         Text(
                           "Distance: ${formatDistance(controller.currentDistance.value)}",
                           style: TextStyle(
@@ -164,7 +152,17 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-
+                    if (controller.isMocked.value)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          "Warning: Mock location detected!",
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     if (!controller.isWithinRadius.value)
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
@@ -179,12 +177,7 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // =============================================================
-              //  PUNCH BUTTON
-              // =============================================================
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: double.infinity,
@@ -206,14 +199,33 @@ class HomeScreen extends StatelessWidget {
                           "Punch In",
                           style: TextStyle(
                             fontSize: 18,
+                            color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                 ),
               ),
-
+              const SizedBox(height: 15),
+              ElevatedButton.icon(
+                onPressed: () => controller.exportAndShareCSV(),
+                icon: const Icon(
+                  Icons.download,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  "Export History CSV",
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+              ),
               const SizedBox(height: 35),
-
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -226,7 +238,6 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-
               controller.recentPunches.isEmpty
                   ? const Text(
                       "No punches yet.",
@@ -238,7 +249,6 @@ class HomeScreen extends StatelessWidget {
                       physics: const NeverScrollableScrollPhysics(),
                       itemBuilder: (_, i) {
                         final p = controller.recentPunches[i];
-
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
