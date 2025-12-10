@@ -7,7 +7,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart'; // Add this package
+import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -180,7 +180,6 @@ class PunchController extends GetxController {
 
   String _dateKey(DateTime dt) => DateFormat('yyyy-MM-dd').format(dt);
 
-  // ✅ Simple CSV Download without MediaStore
   Future<void> downloadCSV() async {
     if (recentPunches.isEmpty) {
       Get.snackbar(
@@ -194,7 +193,6 @@ class PunchController extends GetxController {
     try {
       isExporting.value = true;
 
-      // Create CSV content
       String csv = "Date,Time,Latitude,Longitude,Address\n";
 
       for (var p in recentPunches) {
@@ -202,20 +200,16 @@ class PunchController extends GetxController {
         final date = DateFormat("yyyy-MM-dd").format(dt);
         final time = DateFormat("hh:mm a").format(dt);
 
-        // Escape quotes in address
         final cleanAddress = p.address.replaceAll('"', '""');
 
         csv += '$date,$time,${p.latitude},${p.longitude},"$cleanAddress"\n';
       }
 
-      // Get app directory
       Directory? directory;
 
       if (Platform.isAndroid) {
-        // Try to get Downloads directory for Android
         directory = Directory('/storage/emulated/0/Download');
 
-        // If Downloads not accessible, use app's external storage
         if (!await directory.exists()) {
           directory = await getExternalStorageDirectory();
         }
@@ -227,22 +221,19 @@ class PunchController extends GetxController {
         throw Exception("Unable to access storage directory");
       }
 
-      // Generate filename with timestamp
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = "punch_history_$timestamp.csv";
       final filePath = "${directory.path}/$fileName";
 
-      // Write file
       final file = File(filePath);
       await file.writeAsString(csv);
 
       isExporting.value = false;
 
-      // Show success message with option to open file
       Get.snackbar(
         "✅ Success",
         "CSV saved: $fileName",
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 5),
         mainButton: TextButton(
           onPressed: () => OpenFile.open(filePath),
@@ -262,7 +253,6 @@ class PunchController extends GetxController {
     }
   }
 
-  // ✅ Alternative: Request storage permission manually (Android < 13)
   Future<bool> _requestStoragePermission() async {
     if (Platform.isAndroid) {
       final status = await Permission.storage.request();
@@ -271,7 +261,6 @@ class PunchController extends GetxController {
     return true;
   }
 
-  // ✅ Enhanced download with permission check
   Future<void> downloadCSVWithPermission() async {
     if (recentPunches.isEmpty) {
       Get.snackbar(
@@ -282,7 +271,6 @@ class PunchController extends GetxController {
       return;
     }
 
-    // Request permission first
     final hasPermission = await _requestStoragePermission();
     if (!hasPermission) {
       Get.snackbar(
@@ -293,7 +281,6 @@ class PunchController extends GetxController {
       return;
     }
 
-    // Call the main download function
     await downloadCSV();
   }
 }

@@ -1,6 +1,6 @@
 class Punch {
   int? id;
-  int timestamp; // epoch in milliseconds
+  int timestamp;
   double latitude;
   double longitude;
   String address;
