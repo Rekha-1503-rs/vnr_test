@@ -207,7 +207,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 15),
               ElevatedButton.icon(
-                onPressed: () => controller.exportAndShareCSV(),
+                onPressed: () => controller.downloadCSV(),
                 icon: const Icon(
                   Icons.download,
                   color: Colors.white,

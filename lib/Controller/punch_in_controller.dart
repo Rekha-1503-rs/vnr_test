@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:file_saver/file_saver.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:open_file/open_file.dart'; // Add this package
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../Models/punch_in_model.dart';
 import '../db_helper/db_helper.dart';
@@ -18,6 +23,7 @@ class PunchController extends GetxController {
   var isWithinRadius = false.obs;
   var isPunching = false.obs;
   var isMocked = false.obs;
+  var isExporting = false.obs;
 
   var recentPunches = <Punch>[].obs;
   var groupedPunches = <String, List<Punch>>{}.obs;
@@ -108,7 +114,7 @@ class PunchController extends GetxController {
     final pos = currentPosition.value;
     if (pos == null) {
       Get.snackbar("Error", "Location not ready");
-      return; // exit the function
+      return;
     }
 
     if (!canPunch) {
@@ -118,7 +124,7 @@ class PunchController extends GetxController {
             ? "Cannot punch using mock location"
             : "Punch not allowed",
       );
-      return; // exit the function
+      return;
     }
 
     isPunching.value = true;
@@ -174,36 +180,120 @@ class PunchController extends GetxController {
 
   String _dateKey(DateTime dt) => DateFormat('yyyy-MM-dd').format(dt);
 
-  Future<String> exportAndShareCSV() async {
+  // ✅ Simple CSV Download without MediaStore
+  Future<void> downloadCSV() async {
     if (recentPunches.isEmpty) {
-      Get.snackbar("Info", "No data available to export");
-      return "";
+      Get.snackbar(
+        "Info",
+        "No punch data available to export",
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
     }
 
-    String csv = "Date,Time,Latitude,Longitude,Address\n";
-    for (var p in recentPunches) {
-      final dt = DateTime.fromMillisecondsSinceEpoch(p.timestamp);
-      final date = DateFormat("yyyy-MM-dd").format(dt);
-      final time = DateFormat("hh:mm a").format(dt);
-      csv +=
-          "$date,$time,${p.latitude},${p.longitude},\"${p.address.replaceAll(",", " ")}\"\n";
+    try {
+      isExporting.value = true;
+
+      // Create CSV content
+      String csv = "Date,Time,Latitude,Longitude,Address\n";
+
+      for (var p in recentPunches) {
+        final dt = DateTime.fromMillisecondsSinceEpoch(p.timestamp);
+        final date = DateFormat("yyyy-MM-dd").format(dt);
+        final time = DateFormat("hh:mm a").format(dt);
+
+        // Escape quotes in address
+        final cleanAddress = p.address.replaceAll('"', '""');
+
+        csv += '$date,$time,${p.latitude},${p.longitude},"$cleanAddress"\n';
+      }
+
+      // Get app directory
+      Directory? directory;
+
+      if (Platform.isAndroid) {
+        // Try to get Downloads directory for Android
+        directory = Directory('/storage/emulated/0/Download');
+
+        // If Downloads not accessible, use app's external storage
+        if (!await directory.exists()) {
+          directory = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      }
+
+      if (directory == null) {
+        throw Exception("Unable to access storage directory");
+      }
+
+      // Generate filename with timestamp
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = "punch_history_$timestamp.csv";
+      final filePath = "${directory.path}/$fileName";
+
+      // Write file
+      final file = File(filePath);
+      await file.writeAsString(csv);
+
+      isExporting.value = false;
+
+      // Show success message with option to open file
+      Get.snackbar(
+        "✅ Success",
+        "CSV saved: $fileName",
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 5),
+        mainButton: TextButton(
+          onPressed: () => OpenFile.open(filePath),
+          child: const Text(
+            "OPEN",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    } catch (e) {
+      isExporting.value = false;
+      Get.snackbar(
+        "Error",
+        "Failed to export CSV: ${e.toString()}",
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  // ✅ Alternative: Request storage permission manually (Android < 13)
+  Future<bool> _requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.storage.request();
+      return status.isGranted;
+    }
+    return true;
+  }
+
+  // ✅ Enhanced download with permission check
+  Future<void> downloadCSVWithPermission() async {
+    if (recentPunches.isEmpty) {
+      Get.snackbar(
+        "Info",
+        "No punch data available to export",
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
     }
 
-    // ✅ Convert to bytes
-    Uint8List bytes = Uint8List.fromList(csv.codeUnits);
-
-    String? path = await FileSaver.instance.saveFile(
-      name: "punch_history",
-      bytes: bytes,
-      mimeType: MimeType.csv,
-    );
-
-    if (path != null) {
-      Get.snackbar("Success", "File saved successfully");
-      return path;
-    } else {
-      Get.snackbar("Error", "File save cancelled");
-      return "";
+    // Request permission first
+    final hasPermission = await _requestStoragePermission();
+    if (!hasPermission) {
+      Get.snackbar(
+        "Permission Required",
+        "Storage permission needed to save CSV",
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
     }
+
+    // Call the main download function
+    await downloadCSV();
   }
 }

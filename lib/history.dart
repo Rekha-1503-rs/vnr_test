@@ -30,7 +30,7 @@ class HistoryScreen extends StatelessWidget {
           Padding(
             padding: EdgeInsets.all(12.0),
             child: ElevatedButton.icon(
-              onPressed: () => controller.exportAndShareCSV(),
+              onPressed: () => controller.downloadCSV(),
               icon: const Icon(
                 Icons.download,
                 color: Colors.white,
