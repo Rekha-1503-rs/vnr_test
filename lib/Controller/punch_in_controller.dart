@@ -127,26 +127,37 @@ class PunchController extends GetxController {
 
     final now = DateTime.now();
 
-    if (!canPunch) {
-      if (lastPunchTime != null) {
-        final remaining =
-            const Duration(minutes: 5) - now.difference(lastPunchTime!);
+    // 🚫 Not within 1 KM
+    if (!isWithinRadius.value) {
+      Get.snackbar(
+        "Error",
+        "You are outside the allowed 1 KM radius!",
+      );
+      return;
+    }
+
+    // 🚫 Mock location check
+    if (isMocked.value) {
+      Get.snackbar("Error", "Mock location detected!");
+      return;
+    }
+
+    // 🚫 5-Minute cooldown check
+    if (lastPunchTime != null) {
+      final diff = now.difference(lastPunchTime!);
+      if (diff < const Duration(minutes: 5)) {
+        final remaining = const Duration(minutes: 5) - diff;
 
         Get.snackbar(
           "Please Wait",
           "You can punch again in ${remaining.inMinutes} min "
               "${remaining.inSeconds % 60} sec",
         );
-      } else if (isMocked.value) {
-        Get.snackbar("Error", "Mock location detected!");
-      } else if (!isWithinRadius.value) {
-        Get.snackbar("Error", "You are outside allowed radius!");
-      } else {
-        Get.snackbar("Error", "Punch not allowed!");
+        return;
       }
-      return;
     }
 
+    // ⭐ Passed all checks — Punch can happen
     isPunching.value = true;
 
     bool online = await hasInternet();
